@@ -27,16 +27,7 @@ class StorageService {
         if (data.isNotEmpty) {
             return Character.fromJson(jsonDecode(data));
         }
-
-        // ✅ Return an empty Character instead of null
-        return Character(
-            id: 0,
-            name: '',
-            status: '',
-            species: '',
-            gender: '',
-            image: ''
-        );
+        return Character(id: 0, name: '', status: '', species: '', gender: '', image: '');
     }
 
     Future<List<Character>> getAllUsers() async {
@@ -46,6 +37,15 @@ class StorageService {
             return list.map((e) => Character.fromJson(e)).toList();
         }
         return <Character>[];
+    }
+
+    Future<void> removeUser(int id) async {
+        List<Character> allUsers = await getAllUsers();
+        allUsers.removeWhere((user) => user.id == id);
+        await _storage.write(
+            key: 'users',
+            value: jsonEncode(allUsers.map((e) => e.toJson()).toList())
+        );
     }
 
     Future<void> logout() async {
