@@ -17,21 +17,21 @@ class Character {
 
   factory Character.fromJson(Map<String, dynamic> json) {
     return Character(
-      id: json["id"] ?? 0,
-      name: json["name"] ?? "",
-      status: json["status"] ?? "",
-      species: json["species"] ?? "",
-      gender: json["gender"] ?? "",
-      image: json["image"] ?? "",
+      id: json['id'],
+      name: json['name'],
+      status: json['status'],
+      species: json['species'],
+      gender: json['gender'],
+      image: json['image'],
     );
   }
 
   Map<String, dynamic> toJson() => {
-    "id": id,
-    "name": name,
-    "status": status,
-    "species": species,
-    "gender": gender,
-    "image": image,
+    'id': id,
+    'name': name,
+    'status': status,
+    'species': species,
+    'gender': gender,
+    'image': image,
   };
 }

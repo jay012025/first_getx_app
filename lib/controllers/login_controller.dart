@@ -1,69 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/character_model.dart';
+import '../services/api_service.dart';
 import '../services/storage_service.dart';
-import 'users_controller.dart';
 
 class LoginController extends GetxController {
   final nameController = TextEditingController();
   final statusController = TextEditingController();
-  final StorageService _storageService = StorageService();
+  final RxList<Character> users = <Character>[].obs;
+  final RxList<Character> savedUsers = <Character>[].obs;
+  final RxBool isLoading = false.obs;
 
-  RxList<Character> savedUsers = <Character>[].obs;
+  final ApiService _apiService = ApiService();
+  final StorageService _storage = StorageService();
 
   @override
   void onInit() {
     super.onInit();
+    fetchUsers();
     loadSavedUsers();
-    if (!Get.isRegistered<UsersController>()) {
-      Get.put(UsersController());
+  }
+
+  Future<void> fetchUsers() async {
+    isLoading.value = true;
+    try {
+      final fetched = await _apiService.fetchCharacters();
+      users.assignAll(fetched);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to load data');
+    } finally {
+      isLoading.value = false;
     }
-    final usersController = Get.find<UsersController>();
-    usersController.fetchCharacters();
   }
 
   Future<void> loadSavedUsers() async {
-    final users = await _storageService.getSavedUsers();
-    savedUsers.assignAll(users);
+    final list = await _storage.getAllUsers();
+    savedUsers.assignAll(list);
   }
 
   void login() async {
-    final nameInput = nameController.text.trim();
-    final statusInput = statusController.text.trim();
+    final name = nameController.text.trim();
+    final status = statusController.text.trim();
 
-    if (nameInput.isEmpty || statusInput.isEmpty) {
-      Get.snackbar("Error", "Please enter both name and status");
-      return;
-    }
+    final user = users.firstWhereOrNull(
+          (u) =>
+      u.name.toLowerCase() == name.toLowerCase() &&
+          u.status.toLowerCase() == status.toLowerCase(),
+    );
 
-    final usersController = Get.find<UsersController>();
-
-    Character? found;
-    try {
-      found = usersController.characters.firstWhere(
-            (c) =>
-        c.name.toLowerCase() == nameInput.toLowerCase() &&
-            c.status.toLowerCase() == statusInput.toLowerCase(),
-      );
-    } catch (e) {
-      found = null;
-    }
-
-    if (found != null) {
-      await _storageService.saveUser(found);
-      await loadSavedUsers();
-      Get.snackbar("Success", "Welcome ${found.name}");
-      nameController.clear();
-      statusController.clear();
-      Get.toNamed("/users");
+    if (user != null) {
+      await _storage.saveUser(user);
+      Get.snackbar("Welcome", user.name);
+      Get.offAllNamed('/users');
     } else {
       Get.snackbar("Login Failed", "Invalid name or status");
     }
   }
 
-  void quickLogin(Character user) async {
-    await _storageService.saveUser(user);
-    Get.snackbar("Welcome Back", "Logged in as ${user.name}");
-    Get.toNamed("/users");
+  void fillLogin(Character user) {
+    nameController.text = user.name;
+    statusController.text = user.status;
   }
 }

@@ -1,40 +1,45 @@
 import 'dart:convert';
-import 'package:encrypt_shared_preferences/provider.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/character_model.dart';
 
 class StorageService {
-  static const String _usersKey = "encrypted_users";
-  static const String _currentUserKey = "current_user";
+  final _storage = const FlutterSecureStorage();
 
   Future<void> saveUser(Character user) async {
-    final prefs = await EncryptedSharedPreferences.getInstance();
-    final usersJson = await prefs.getString(_usersKey) ?? '[]';
-    final List<dynamic> usersList = json.decode(usersJson);
-
-    if (!usersList.any((u) => u["name"] == user.name)) {
-      usersList.add(user.toJson());
-      await prefs.setString(_usersKey, json.encode(usersList));
+    final allUsers = await getAllUsers();
+    if (allUsers.every((u) => u.id != user.id)) {
+      allUsers.add(user);
     }
 
-    await prefs.setString(_currentUserKey, json.encode(user.toJson()));
+    await _storage.write(
+      key: 'users',
+      value: jsonEncode(allUsers.map((e) => e.toJson()).toList()),
+    );
+
+    await _storage.write(
+      key: 'current_user',
+      value: jsonEncode(user.toJson()),
+    );
   }
 
   Future<Character?> getCurrentUser() async {
-    final prefs = await EncryptedSharedPreferences.getInstance();
-    final userJson = await prefs.getString(_currentUserKey);
-    if (userJson == null) return null;
-    return Character.fromJson(json.decode(userJson));
+    final data = await _storage.read(key: 'current_user');
+    if (data != null) {
+      return Character.fromJson(jsonDecode(data));
+    }
+    return null;
   }
 
-  Future<List<Character>> getSavedUsers() async {
-    final prefs = await EncryptedSharedPreferences.getInstance();
-    final usersJson = await prefs.getString(_usersKey) ?? '[]';
-    final List<dynamic> usersList = json.decode(usersJson);
-    return usersList.map((e) => Character.fromJson(e)).toList();
+  Future<List<Character>> getAllUsers() async {
+    final data = await _storage.read(key: 'users');
+    if (data != null) {
+      final List list = jsonDecode(data);
+      return list.map((e) => Character.fromJson(e)).toList();
+    }
+    return [];
   }
 
   Future<void> logout() async {
-    final prefs = await EncryptedSharedPreferences.getInstance();
-    await prefs.remove(_currentUserKey);
+    await _storage.delete(key: 'current_user');
   }
 }

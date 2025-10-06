@@ -5,56 +5,57 @@ import '../services/storage_service.dart';
 
 class UsersController extends GetxController {
   final RxList<Character> characters = <Character>[].obs;
-  final RxBool isLoading = false.obs;
+  final RxList<Character> filteredUsers = <Character>[].obs;
   final Rx<Character?> currentUser = Rx<Character?>(null);
+  final RxBool isLoading = false.obs;
 
-  // Filters
   final RxString selectedStatus = "".obs;
   final RxString selectedSpecies = "".obs;
   final RxString selectedGender = "".obs;
 
-  final StorageService _storageService = StorageService();
-  final ApiService _apiService = ApiService();
+  final StorageService _storage = StorageService();
+  final ApiService _api = ApiService();
 
   @override
   void onInit() {
     super.onInit();
-    loadCurrentUser();
-    fetchCharacters();
+    loadData();
+  }
+
+  Future<void> loadData() async {
+    await loadCurrentUser();
+    await fetchCharacters();
+  }
+
+  Future<void> loadCurrentUser() async {
+    currentUser.value = await _storage.getCurrentUser();
   }
 
   Future<void> fetchCharacters() async {
     isLoading.value = true;
     try {
-      final result = await _apiService.fetchCharacters();
-      characters.assignAll(result);
-    } catch (e) {
-      Get.snackbar("Error", "Failed to fetch characters");
+      final data = await _api.fetchCharacters();
+      characters.assignAll(data);
+      applyFilters();
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> loadCurrentUser() async {
-    final user = await _storageService.getCurrentUser();
-    currentUser.value = user;
+  void applyFilters() {
+    filteredUsers.value = characters.where((c) {
+      if (currentUser.value != null && c.id == currentUser.value!.id) return false;
+      if (selectedStatus.value.isNotEmpty && c.status != selectedStatus.value) return false;
+      if (selectedSpecies.value.isNotEmpty && c.species != selectedSpecies.value) return false;
+      if (selectedGender.value.isNotEmpty && c.gender != selectedGender.value) return false;
+      return true;
+    }).toList();
   }
 
-  Future<void> logout() async {
-    await _storageService.logout();
-    currentUser.value = null;
+  void logout() async {
+    await _storage.logout();
     Get.offAllNamed('/');
   }
-
-  // Filtered users excluding current user
-  RxList<Character> get filteredUsers => characters
-      .where((c) => c.id != currentUser.value?.id)
-      .where((c) =>
-  (selectedStatus.value.isEmpty || c.status == selectedStatus.value) &&
-      (selectedSpecies.value.isEmpty || c.species == selectedSpecies.value) &&
-      (selectedGender.value.isEmpty || c.gender == selectedGender.value))
-      .toList()
-      .obs;
 
   List<String> getStatusList() => characters.map((c) => c.status).toSet().toList();
   List<String> getSpeciesList() => characters.map((c) => c.species).toSet().toList();
